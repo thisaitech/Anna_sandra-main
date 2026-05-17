@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sandra ERP</string>
+    <string name="title_activity_main">Sandra ERP</string>
+    <string name="package_name">com.Sandra.erp</string>
+    <string name="custom_url_scheme">com.Sandra.erp</string>
+</resources>

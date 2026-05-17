@@ -1,0 +1,246 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDocExists() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userData() {
+      return userDocExists()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        : null;
+    }
+
+    function userCompanyId() {
+      return userDocExists() ? userData().companyId : null;
+    }
+
+    function userRole() {
+      return userDocExists() ? userData().role : null;
+    }
+
+    function userStatus() {
+      return userDocExists() ? userData().status : null;
+    }
+
+    function isActive() {
+      return userDocExists() && userStatus() == 'active';
+    }
+
+    function isSuperAdmin() {
+      return isActive() && userRole() == 'super_admin';
+    }
+
+    function isInternalRole() {
+      return userRole() in ['super_admin', 'org_admin', 'admin', 'manager', 'sales', 'staff', 'cashier'];
+    }
+
+    function isActiveInternal() {
+      return isActive() && isInternalRole();
+    }
+
+    function isAdmin() {
+      return isActive() && (userRole() in ['super_admin', 'org_admin', 'admin']);
+    }
+
+    function sameCompany(companyId) {
+      return companyId != null && userCompanyId() != null && companyId == userCompanyId();
+    }
+
+    function canReadCompanyDoc() {
+      return isSuperAdmin() || (isActiveInternal() && sameCompany(resource.data.companyId));
+    }
+
+    function canCreateCompanyDoc() {
+      return isSuperAdmin() || (isActiveInternal() && sameCompany(request.resource.data.companyId));
+    }
+
+    function canUpdateCompanyDoc() {
+      return isSuperAdmin() || (
+        isActiveInternal() &&
+        sameCompany(resource.data.companyId) &&
+        sameCompany(request.resource.data.companyId)
+      );
+    }
+
+    function canDeleteCompanyDoc() {
+      return isSuperAdmin() || (isActiveInternal() && sameCompany(resource.data.companyId));
+    }
+
+    // =========================
+    // USERS
+    // =========================
+    match /users/{userId} {
+      function isSelf() {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+      function isNewUserDoc() {
+        return !exists(/databases/$(database)/documents/users/$(userId));
+      }
+
+      // Self can always read their own user doc.
+      // Super admin can read all users.
+      // Company admins can read users in their company.
+      allow read: if isSelf()
+        || isSuperAdmin()
+        || (isAdmin() && sameCompany(resource.data.companyId));
+
+      // Self create is allowed for initial signup and social login.
+      // Prevent privilege escalation by restricting allowed roles on self-create.
+      // Admin can create staff/manager users in their own company.
+      allow create: if isSignedIn() && (
+        (
+          isSelf() &&
+          isNewUserDoc() &&
+          request.resource.data.uid == userId &&
+          request.resource.data.status == 'active' &&
+          request.resource.data.role in ['org_admin', 'staff'] &&
+          request.resource.data.companyId != null
+        ) ||
+        (
+          isAdmin() &&
+          request.resource.data.uid == userId &&
+          request.resource.data.createdBy == request.auth.uid &&
+          request.resource.data.role in ['staff', 'manager'] &&
+          sameCompany(request.resource.data.companyId)
+        ) ||
+        (
+          isSuperAdmin()
+        )
+      );
+
+      // Updates:
+      // - Self: can update basic profile fields, but not companyId/role/createdBy/createdAt/uid.
+      // - Admin: can manage other users in the same company; cannot change companyId/createdBy/createdAt/uid.
+      allow update: if isSignedIn() && (
+        (
+          isSelf() &&
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['companyId', 'role', 'createdBy', 'createdAt', 'uid'])
+        ) ||
+        (
+          isAdmin() &&
+          !isSelf() &&
+          sameCompany(resource.data.companyId) &&
+          sameCompany(request.resource.data.companyId) &&
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['companyId', 'createdBy', 'createdAt', 'uid'])
+        ) ||
+        (
+          isSuperAdmin()
+        )
+      );
+
+      // Delete: admin can delete other users in their company; super admin can delete any.
+      allow delete: if isSuperAdmin()
+        || (isAdmin() && !isSelf() && sameCompany(resource.data.companyId));
+    }
+
+    // =========================
+    // SETTINGS (ADMIN ONLY WRITES)
+    // =========================
+    match /settings/{settingId} {
+      allow read: if canReadCompanyDoc();
+
+      allow create: if isSuperAdmin()
+        || (isAdmin() && sameCompany(request.resource.data.companyId));
+
+      allow update: if isSuperAdmin()
+        || (isAdmin() && sameCompany(resource.data.companyId) && sameCompany(request.resource.data.companyId));
+
+      allow delete: if isSuperAdmin()
+        || (isAdmin() && sameCompany(resource.data.companyId));
+    }
+
+    // =========================
+    // USER PERMISSIONS (ADMIN ONLY)
+    // =========================
+    match /user_permissions/{permId} {
+      allow read: if isSuperAdmin()
+        || (isAdmin() && sameCompany(resource.data.companyId));
+
+      allow create: if isSuperAdmin()
+        || (isAdmin() && sameCompany(request.resource.data.companyId));
+
+      allow update: if isSuperAdmin()
+        || (isAdmin() && sameCompany(resource.data.companyId) && sameCompany(request.resource.data.companyId));
+
+      allow delete: if isSuperAdmin()
+        || (isAdmin() && sameCompany(resource.data.companyId));
+    }
+
+    // =========================
+    // BANKING
+    // =========================
+    // Banking.tsx uses per-user docs:
+    //   {uid}_page
+    //   {uid}_page_transactions
+    // We also allow company-scoped banking docs (with companyId) if introduced later.
+    match /banking/{docId} {
+      function isOwnBankingDoc() {
+        return isSignedIn() && (
+          docId == (request.auth.uid + '_page') ||
+          docId == (request.auth.uid + '_page_transactions')
+        );
+      }
+
+      allow read: if isSuperAdmin()
+        || (isActiveInternal() && (isOwnBankingDoc() || sameCompany(resource.data.companyId)));
+
+      allow create: if isSuperAdmin()
+        || (isActiveInternal() && (isOwnBankingDoc() || sameCompany(request.resource.data.companyId)));
+
+      allow update: if isSuperAdmin()
+        || (isActiveInternal() && (
+          isOwnBankingDoc() ||
+          (sameCompany(resource.data.companyId) && sameCompany(request.resource.data.companyId))
+        ));
+
+      allow delete: if isSuperAdmin()
+        || (isActiveInternal() && (isOwnBankingDoc() || sameCompany(resource.data.companyId)));
+    }
+
+    // =========================
+    // RATE LIMIT DOCS (FUNCTIONS ONLY)
+    // =========================
+    match /rate_limits/{docId} {
+      allow read, write: if false;
+    }
+
+    // =========================
+    // GENERIC COMPANY-SCOPED DOCS
+    // =========================
+    match /{collectionId}/{docId} {
+      allow read: if collectionId != 'users'
+        && collectionId != 'settings'
+        && collectionId != 'user_permissions'
+        && collectionId != 'banking'
+        && canReadCompanyDoc();
+
+      allow create: if collectionId != 'users'
+        && collectionId != 'settings'
+        && collectionId != 'user_permissions'
+        && collectionId != 'banking'
+        && canCreateCompanyDoc();
+
+      allow update: if collectionId != 'users'
+        && collectionId != 'settings'
+        && collectionId != 'user_permissions'
+        && collectionId != 'banking'
+        && canUpdateCompanyDoc();
+
+      allow delete: if collectionId != 'users'
+        && collectionId != 'settings'
+        && collectionId != 'user_permissions'
+        && collectionId != 'banking'
+        && canDeleteCompanyDoc();
+    }
+  }
+}
+
