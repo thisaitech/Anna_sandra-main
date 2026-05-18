@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+      /* Local dev: block stale service worker from serving broken cached JS */
+      (function () {
+        var h = location.hostname;
+        if (h !== 'localhost' && h !== '127.0.0.1') return;
+        if ('serviceWorker' in navigator) {
+          try {
+            navigator.serviceWorker.getRegistrations().then(function (r) {
+              r.forEach(function (x) { x.unregister(); });
+            });
+          } catch (e) {}
+          navigator.serviceWorker.register = function () {
+            return Promise.reject(new Error('Service worker disabled for local dev'));
+          };
+        }
+        if (window.caches && caches.keys) {
+          caches.keys().then(function (keys) {
+            keys.forEach(function (k) { caches.delete(k); });
+          });
+        }
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+    <!-- Primary Meta Tags -->
+    <title>Sandra erp | Business Management Solution</title>
+    <meta name="title" content="Sandra ERP | Business Management Solution" />
+    <meta name="description" content="Complete ERP solution for managing sales, purchases, inventory, parties, expenses, and business operations. Works offline on mobile, tablet, and desktop." />
+    <meta name="keywords" content="ERP, business management, accounting, inventory, sales, purchases, invoicing" />
+    <meta name="author" content="Sandra ERP" />
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#3b82f6" />
+    <meta name="msapplication-TileColor" content="#3b82f6" />
+    <meta name="msapplication-navbutton-color" content="#3b82f6" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Sandra ERP" />
+    <meta name="application-name" content="Sandra ERP" />
+
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- App Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="144x144" href="/icon-144x144.png" />
+    <link rel="apple-touch-icon" sizes="120x120" href="/icon-128x128.png" />
+    <link rel="apple-touch-icon" sizes="72x72" href="/icon-72x72.png" />
+
+    <!-- Fonts - Premium Typography Stack -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Poppins: Modern geometric sans-serif for headings & labels -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- DM Sans: Clean, professional for body text & data -->
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+    <!-- JetBrains Mono: Crisp monospace for numbers & currency -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Inter: Fallback & UI elements -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    (function () {
+      var path = location.pathname.replace(/\/$/, '') || '/';
+      if (path === '/dev-signin' || path === '/dev-login' || path === '/dev-login.html' || location.search.indexOf('dev=1') !== -1) {
+        localStorage.setItem('devAuth', '1');
+        localStorage.setItem('user', JSON.stringify({
+          uid: 'dev-local-user',
+          email: 'dev@sandra.local',
+          displayName: 'Dev User',
+          companyName: 'Sandra Software',
+          companyId: 'dev-company-local',
+          role: 'super_admin',
+          status: 'active',
+          createdAt: new Date().toISOString()
+        }));
+        location.replace('/');
+        return;
+      }
+      var host = location.hostname;
+      if (host !== 'localhost' && host !== '127.0.0.1') return;
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { r.unregister(); });
+        });
+      }
+      caches.keys().then(function (keys) {
+        keys.forEach(function (k) { caches.delete(k); });
+      });
+    })();
+  </script>
+  <script type="module" crossorigin src="/assets/index-jCsVk30s.js?v=38"></script>
+  <link rel="modulepreload" crossorigin href="/assets/react-vendor-r3yYxNhK.js">
+  <link rel="modulepreload" crossorigin href="/assets/ui-vendor--4o8o4K1.js">
+  <link rel="modulepreload" crossorigin href="/assets/firebase-vendor-BYKC5ZuK.js">
+  <link rel="modulepreload" crossorigin href="/assets/icons-vendor-DcCiQEjK.js">
+  <link rel="modulepreload" crossorigin href="/assets/utils-vendor-BiOBxSaf.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-C2MQGbny.css">
+<link rel="manifest" href="/manifest.webmanifest"></head>
+<body>
+    <div id="root"></div>
+</body>
+</html>
