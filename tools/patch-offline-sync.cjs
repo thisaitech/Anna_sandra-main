@@ -78,11 +78,19 @@ rep(
 );
 
 // 8) Re-queue local rows still marked _pendingSync but missing from sync queue (recovery)
-rep(
-  '$t().catch(console.error);Bs();',
-  'async function Rq(){try{const st=[y.PARTIES,y.ITEMS,y.INVOICES,y.EXPENSES];const q=await xe(y.SYNC_QUEUE);const ids=new Set(q.map(i=>i.data?.id).filter(Boolean));for(const stn of st){const rows=await xe(stn);for(const row of rows){if(!row||!row._pendingSync||!row.id||ids.has(row.id))continue;const op=kr(row.id)?"create":"update";await Yi(op,stn,row),ids.add(row.id)}}}catch(e){console.warn("requeue pending local records",e)}}$t().catch(console.error);Bs();Rq();',
-  'requeue pending local records (Rq)'
-);
+const rqFn =
+  'async function Rq(){try{const st=[y.PARTIES,y.ITEMS,y.INVOICES,y.EXPENSES];const q=await xe(y.SYNC_QUEUE);const ids=new Set(q.map(i=>i.data?.id).filter(Boolean));for(const stn of st){const rows=await xe(stn);for(const row of rows){if(!row||!row._pendingSync||!row.id||ids.has(row.id))continue;const op=kr(row.id)?"create":"update";await Yi(op,stn,row),ids.add(row.id)}}}catch(e){console.warn("requeue pending local records",e)}}';
+if (!s.includes('async function Rq(){try{const st=[y.PARTIES')) {
+  rep(
+    '$t().catch(console.error);Bs();',
+    rqFn + '$t().catch(console.error);Bs();Rq();',
+    'requeue pending local records (Rq)'
+  );
+} else if (!s.includes('$t().catch(console.error);Bs();Rq();')) {
+  rep('$t().catch(console.error);Bs();', '$t().catch(console.error);Bs();Rq();', 'Rq bootstrap call');
+} else {
+  console.log('Already patched: requeue pending local records (Rq)');
+}
 
 // 9) initSyncService: preload modules on startup and requeue
 rep(

@@ -2,6 +2,27 @@
 <html lang="en">
 <head>
     <script>
+      /* Ensure user.companyId exists for offline/local services (mirrors index _e()) */
+      (function () {
+        try {
+          var raw = localStorage.getItem('user');
+          if (!raw) return;
+          var u = JSON.parse(raw);
+          if (u && u.companyId) return;
+          var name = (u.companyName || '').trim();
+          var email = (u.email || '').trim().toLowerCase();
+          var slug = name;
+          if (!slug && email) {
+            var parts = email.split('@');
+            slug = parts[0] && parts[1] ? parts[0] + '-' + parts[1] : email;
+          }
+          slug = (slug || 'default-company').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          u.companyId = slug;
+          localStorage.setItem('user', JSON.stringify(u));
+        } catch (e) {}
+      })();
+    </script>
+    <script>
       /* Local dev: block stale service worker from serving broken cached JS */
       (function () {
         var h = location.hostname;
@@ -98,7 +119,7 @@
       });
     })();
   </script>
-  <script type="module" crossorigin src="/assets/index-jCsVk30s.js?v=38"></script>
+  <script type="module" crossorigin src="/assets/index-jCsVk30s.js?v=54"></script>
   <link rel="modulepreload" crossorigin href="/assets/react-vendor-r3yYxNhK.js">
   <link rel="modulepreload" crossorigin href="/assets/ui-vendor--4o8o4K1.js">
   <link rel="modulepreload" crossorigin href="/assets/firebase-vendor-BYKC5ZuK.js">

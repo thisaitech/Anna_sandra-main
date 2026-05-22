@@ -11,7 +11,7 @@
     ]
   },
   "hosting": {
-    "site": "sandra-erp",
+    "site": "petshop-9dee5",
     "public": "dist",
     "ignore": [
       "firebase.json",
