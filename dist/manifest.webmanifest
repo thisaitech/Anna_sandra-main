@@ -1,1 +1,37 @@
-{"name":"ThisAI CRM - Billing Pro","short_name":"ThisAI CRM","description":"Complete CRM solution for managing sales, purchases, inventory, and business operations. Works offline!","start_url":"/","display":"standalone","background_color":"#ffffff","theme_color":"#3b82f6","lang":"en","scope":"/","orientation":"portrait-primary","icons":[{"src":"pwa-192x192.png","sizes":"192x192","type":"image/png"},{"src":"pwa-512x512.png","sizes":"512x512","type":"image/png"},{"src":"pwa-512x512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]}
+{
+  "name": "Sandra ERP",
+  "short_name": "Sandra ERP",
+  "description": "Billing, inventory, parties and sales — works fully offline after install.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "lang": "en",
+  "scope": "/",
+    "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,42 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="/offline-sync-bridge.js?v=1"></script>
+    <script src="/offline-status-bar.js?v=2"></script>
+    <script src="/pwa-install-controller.js?v=4"></script>
     <script>
-      /* Ensure user.companyId exists for offline/local services (mirrors index _e()) */
+      /* One-time: clear stale SW cache so new PWA install code loads (?pwa-reset=1) */
       (function () {
-        try {
-          var raw = localStorage.getItem('user');
-          if (!raw) return;
-          var u = JSON.parse(raw);
-          if (u && u.companyId) return;
-          var name = (u.companyName || '').trim();
-          var email = (u.email || '').trim().toLowerCase();
-          var slug = name;
-          if (!slug && email) {
-            var parts = email.split('@');
-            slug = parts[0] && parts[1] ? parts[0] + '-' + parts[1] : email;
-          }
-          slug = (slug || 'default-company').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-          u.companyId = slug;
-          localStorage.setItem('user', JSON.stringify(u));
-        } catch (e) {}
+        if (location.search.indexOf('pwa-reset=1') === -1) return;
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (r) { r.unregister(); });
+          });
+        }
+        if (window.caches && caches.keys) {
+          caches.keys().then(function (keys) {
+            keys.forEach(function (k) { caches.delete(k); });
+          });
+        }
+        try { localStorage.removeItem('pwa_banner_dismissed'); } catch (e) {}
       })();
     </script>
     <script>
-      /* Local dev: block stale service worker from serving broken cached JS */
+      /* Offline: keep companyId + user session across app restarts */
+      (function () {
+        try {
+          var PREFIX_PARTIES = 'thisai_crm_parties_';
+          var PREFIX_ITEMS = 'thisai_crm_items_';
+          var cid = localStorage.getItem('app_offline_company_id');
+          var raw = localStorage.getItem('user');
+          var u = raw ? JSON.parse(raw) : null;
+          if (u && u.companyId) {
+            cid = u.companyId;
+            localStorage.setItem('app_offline_company_id', cid);
+          }
+          if (!cid) {
+            for (var i = 0; i < localStorage.length; i++) {
+              var k = localStorage.key(i);
+              if (!k) continue;
+              if (k.indexOf(PREFIX_PARTIES) === 0 || k.indexOf(PREFIX_ITEMS) === 0) {
+                var p = k.indexOf(PREFIX_PARTIES) === 0 ? PREFIX_PARTIES : PREFIX_ITEMS;
+                cid = k.slice(p.length);
+                if (cid) break;
+              }
+            }
+            if (cid) localStorage.setItem('app_offline_company_id', cid);
+          }
+          if (!u && cid) {
+            localStorage.setItem('user', JSON.stringify({
+              uid: 'offline-local',
+              email: '',
+              displayName: 'Offline User',
+              companyId: cid,
+              role: 'super_admin',
+              status: 'active'
+            }));
+          } else if (u && cid && !u.companyId) {
+            u.companyId = cid;
+            localStorage.setItem('user', JSON.stringify(u));
+          }
+        } catch (e) {}
+      })();
+    </script>
+
+    <script>
+      /* Local dev: clear caches only when ?fresh=1 (keep SW for PWA install testing) */
       (function () {
         var h = location.hostname;
         if (h !== 'localhost' && h !== '127.0.0.1') return;
-        if ('serviceWorker' in navigator) {
-          try {
-            navigator.serviceWorker.getRegistrations().then(function (r) {
-              r.forEach(function (x) { x.unregister(); });
-            });
-          } catch (e) {}
-          navigator.serviceWorker.register = function () {
-            return Promise.reject(new Error('Service worker disabled for local dev'));
-          };
-        }
+        if (location.search.indexOf('fresh=1') === -1) return;
         if (window.caches && caches.keys) {
           caches.keys().then(function (keys) {
             keys.forEach(function (k) { caches.delete(k); });
@@ -94,6 +126,7 @@
       var path = location.pathname.replace(/\/$/, '') || '/';
       if (path === '/dev-signin' || path === '/dev-login' || path === '/dev-login.html' || location.search.indexOf('dev=1') !== -1) {
         localStorage.setItem('devAuth', '1');
+        localStorage.setItem('app_offline_company_id', 'dev-company-local');
         localStorage.setItem('user', JSON.stringify({
           uid: 'dev-local-user',
           email: 'dev@sandra.local',
@@ -107,26 +140,37 @@
         location.replace('/');
         return;
       }
-      var host = location.hostname;
-      if (host !== 'localhost' && host !== '127.0.0.1') return;
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function (regs) {
-          regs.forEach(function (r) { r.unregister(); });
-        });
-      }
-      caches.keys().then(function (keys) {
-        keys.forEach(function (k) { caches.delete(k); });
-      });
     })();
   </script>
-  <script type="module" crossorigin src="/assets/index-jCsVk30s.js?v=54"></script>
+  <script type="module" crossorigin src="/assets/index-jCsVk30s.js?v=37"></script>
   <link rel="modulepreload" crossorigin href="/assets/react-vendor-r3yYxNhK.js">
   <link rel="modulepreload" crossorigin href="/assets/ui-vendor--4o8o4K1.js">
   <link rel="modulepreload" crossorigin href="/assets/firebase-vendor-BYKC5ZuK.js">
   <link rel="modulepreload" crossorigin href="/assets/icons-vendor-DcCiQEjK.js">
   <link rel="modulepreload" crossorigin href="/assets/utils-vendor-BiOBxSaf.js">
   <link rel="stylesheet" crossorigin href="/assets/index-C2MQGbny.css">
-<link rel="manifest" href="/manifest.webmanifest"></head>
+    <script>
+      /* Default offline-first settings (Vyapar-style) on first install */
+      (function () {
+        try {
+          if (!localStorage.getItem('offlineSyncSettings')) {
+            localStorage.setItem('offlineSyncSettings', JSON.stringify({
+              offlineFirstMode: true,
+              enableOfflineMode: true,
+              autoSync: true,
+              syncInterval: 30,
+              syncOnlyOnWifi: false,
+              instantSync: true,
+              cacheItems: true,
+              cacheParties: true,
+              cacheInvoices: true
+            }));
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="/dashboard-layout.css?v=1" />
+  </head>
 <body>
     <div id="root"></div>
 </body>

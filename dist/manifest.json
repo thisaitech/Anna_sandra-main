@@ -1,10 +1,11 @@
 {
   "name": "Sandra ERP",
   "short_name": "Sandra ERP",
-  "description": "Complete ERP solution for managing sales, purchases, inventory, and business operations. Works offline!",
+  "description": "Billing, inventory, parties and sales — works fully offline after install.",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "display_override": ["standalone"],
+  "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
   "scope": "/",
@@ -13,48 +14,58 @@
   "lang": "en",
   "dir": "ltr",
   "prefer_related_applications": false,
-  "icons": [
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://petshop-9dee5.web.app/manifest.json"
+    },
+    {
+      "platform": "webapp",
+      "url": "http://localhost:3002/manifest.json"
+    },
+    {
+      "platform": "webapp",
+      "url": "http://127.0.0.1:3002/manifest.json"
+    }
+  ],
+    "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/logo192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/logo512.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "purpose": "any"
     }
   ],
-  "screenshots": [],
   "shortcuts": [
     {
       "name": "New Sale",
       "short_name": "Sale",
-      "description": "Create a new sale invoice",
       "url": "/sales?mode=create",
-      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon.svg", "sizes": "96x96", "type": "image/svg+xml" }]
     },
     {
-      "name": "New Purchase",
-      "short_name": "Purchase",
-      "description": "Create a new purchase",
-      "url": "/purchases?mode=create",
-      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
-    },
-    {
-      "name": "View Parties",
+      "name": "Parties",
       "short_name": "Parties",
-      "description": "View all parties/customers",
       "url": "/parties",
-      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon.svg", "sizes": "96x96", "type": "image/svg+xml" }]
     }
-  ],
-  "related_applications": [],
-  "handle_links": "preferred"
+  ]
 }

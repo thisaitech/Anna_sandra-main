@@ -1,0 +1,46 @@
+/* Dashboard + app layout — sync pill, no overlap */
+body.sandra-app-shell { padding-bottom: 0 !important; }
+body.sandra-sync-active { padding-bottom: 0 !important; }
+#sandra-offline-status-bar {
+  position: fixed !important;
+  top: 12px !important;
+  right: 12px !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  max-width: min(420px, calc(100vw - 24px));
+  border-radius: 12px !important;
+  border: 1px solid rgba(0,0,0,.08) !important;
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  gap: 8px !important;
+  flex-wrap: wrap;
+  justify-content: flex-end !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12) !important;
+  pointer-events: none;
+}
+#sandra-offline-status-bar.online:not(.force-show) { display: none !important; }
+@media (max-width: 1023px) {
+  #sandra-offline-status-bar { top: auto !important; bottom: 12px !important; right: 12px !important; left: 12px !important; max-width: none; }
+}
+.min-h-screen.bg-\[\#e4ebf5\],
+.min-h-screen.bg-slate-900 {
+  padding-bottom: 1rem !important;
+}
+
+/* Dashboard density: insight widgets + chart */
+.hidden.lg\:block .grid.grid-cols-2.lg\:grid-cols-4 button {
+  min-height: 88px;
+}
+
+.hidden.lg\:block .xl\:col-span-2 .flex.items-center.justify-between.p-4.rounded-2xl {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hidden.lg\:block .xl\:col-span-2 .flex.items-center.justify-between.p-4.rounded-2xl > div:last-child {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
