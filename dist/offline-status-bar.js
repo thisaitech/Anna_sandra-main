@@ -105,7 +105,8 @@
     }
     if (status === 'error' || cfg.lastSyncError) {
       el.classList.add('error');
-      el.innerHTML = '<span>⚠ Sync issue</span><span>' + (cfg.lastSyncError || 'Retrying…') + '</span>';
+      var _err = (cfg.lastSyncError || 'Retrying…').replace(/^(\\w+:\\s*){2,}/, '').replace(/ - /g, ' · ');
+      el.innerHTML = '<span>⚠ Sync issue</span><span>' + _err + '</span>';
       return;
     }
     el.classList.add('online');

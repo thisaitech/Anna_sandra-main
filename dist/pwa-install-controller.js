@@ -41,9 +41,41 @@
     updateButton();
   }
 
+  /** Install UI only on login — hidden on dashboard, POS, and all other routes */
+  function isLoginPage() {
+    try {
+      var p = (window.location.pathname || '').replace(/\/$/, '') || '/';
+      return p === '/login';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function hookSpaNavigation() {
+    if (window.__PWA_LOGIN_ROUTE_HOOK__) return;
+    window.__PWA_LOGIN_ROUTE_HOOK__ = true;
+    var push = history.pushState;
+    var replace = history.replaceState;
+    history.pushState = function () {
+      var r = push.apply(history, arguments);
+      updateButton();
+      return r;
+    };
+    history.replaceState = function () {
+      var r = replace.apply(history, arguments);
+      updateButton();
+      return r;
+    };
+    window.addEventListener('popstate', updateButton);
+  }
+
   function updateButton() {
     var btn = document.getElementById(BTN_ID);
     if (!btn) return;
+    if (!isLoginPage()) {
+      btn.style.display = 'none';
+      return;
+    }
     if (api.state === 'standalone') {
       btn.style.display = 'none';
       return;
@@ -213,6 +245,7 @@
   window.__PWA__ = api;
 
   function boot() {
+    hookSpaNavigation();
     injectButton();
     detectInstalled().then(function (installed) {
       if (!installed && api.deferred) setState('installable');
@@ -243,5 +276,5 @@
     boot();
   }
 
-  log('controller v4 loaded');
+  log('controller v5 loaded (login page only)');
 })();

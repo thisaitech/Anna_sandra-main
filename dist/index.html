@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <script src="/offline-sync-bridge.js?v=1"></script>
-    <script src="/offline-status-bar.js?v=2"></script>
-    <script src="/pwa-install-controller.js?v=4"></script>
+    <script src="/offline-status-bar.js?v=3"></script>
+    <script src="/pwa-install-controller.js?v=5"></script>
     <script>
       /* One-time: clear stale SW cache so new PWA install code loads (?pwa-reset=1) */
       (function () {
@@ -27,6 +27,7 @@
         try {
           var PREFIX_PARTIES = 'thisai_crm_parties_';
           var PREFIX_ITEMS = 'thisai_crm_items_';
+          var PREFIX_INVOICES = 'thisai_crm_invoices_';
           var cid = localStorage.getItem('app_offline_company_id');
           var raw = localStorage.getItem('user');
           var u = raw ? JSON.parse(raw) : null;
@@ -38,8 +39,8 @@
             for (var i = 0; i < localStorage.length; i++) {
               var k = localStorage.key(i);
               if (!k) continue;
-              if (k.indexOf(PREFIX_PARTIES) === 0 || k.indexOf(PREFIX_ITEMS) === 0) {
-                var p = k.indexOf(PREFIX_PARTIES) === 0 ? PREFIX_PARTIES : PREFIX_ITEMS;
+              if (k.indexOf(PREFIX_PARTIES) === 0 || k.indexOf(PREFIX_ITEMS) === 0 || k.indexOf(PREFIX_INVOICES) === 0) {
+                var p = k.indexOf(PREFIX_PARTIES) === 0 ? PREFIX_PARTIES : (k.indexOf(PREFIX_ITEMS) === 0 ? PREFIX_ITEMS : PREFIX_INVOICES);
                 cid = k.slice(p.length);
                 if (cid) break;
               }
@@ -58,6 +59,13 @@
           } else if (u && cid && !u.companyId) {
             u.companyId = cid;
             localStorage.setItem('user', JSON.stringify(u));
+          }
+          /* Offline: skip login if we already have a local session */
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            var path = location.pathname.replace(/\/$/, '') || '/';
+            if (path === '/login' && localStorage.getItem('user')) {
+              location.replace('/');
+            }
           }
         } catch (e) {}
       })();
@@ -142,7 +150,7 @@
       }
     })();
   </script>
-  <script type="module" crossorigin src="/assets/index-jCsVk30s.js?v=37"></script>
+  <script type="module" crossorigin src="/assets/index-jCsVk30s.js?v=31"></script>
   <link rel="modulepreload" crossorigin href="/assets/react-vendor-r3yYxNhK.js">
   <link rel="modulepreload" crossorigin href="/assets/ui-vendor--4o8o4K1.js">
   <link rel="modulepreload" crossorigin href="/assets/firebase-vendor-BYKC5ZuK.js">
@@ -172,6 +180,18 @@
     <link rel="stylesheet" href="/dashboard-layout.css?v=1" />
   </head>
 <body>
+        <script type="module">
+      /* Register offline sync handlers early (party/item/expense/invoice) */
+      (function () {
+        var seq = [
+          '/assets/partyService-Wzcg7Wjf.js?v=48',
+          '/assets/itemService-sgFD7LVj.js?v=48',
+          '/assets/expenseService-C2uEJ3jV.js?v=48',
+          '/assets/invoiceService-wndk85Fv.js?v=48'
+        ];
+        seq.forEach(function (u) { import(u).catch(function () {}); });
+      })();
+    </script>
     <div id="root"></div>
 </body>
 </html>

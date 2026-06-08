@@ -1,0 +1,4 @@
+const fs = require('fs');
+const idx = fs.readFileSync('dist/assets/index-jCsVk30s.js', 'utf8');
+const i = idx.indexOf('User data missing - clearing stored user');
+console.log(idx.slice(i - 800, i + 400));
