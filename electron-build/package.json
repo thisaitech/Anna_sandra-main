@@ -1,0 +1,26 @@
+{
+  "name": "sandra-erp",
+  "version": "1.0.0",
+  "description": "Sandra ERP Desktop Application",
+  "type": "module",
+  "main": "electron/main.js",
+  "author": "Sandra ERP",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.sandra.erp",
+    "productName": "Sandra ERP",
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

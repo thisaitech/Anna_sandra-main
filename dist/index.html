@@ -3,7 +3,7 @@
 <head>
     <script src="/offline-sync-bridge.js?v=1"></script>
     <script src="/offline-status-bar.js?v=3"></script>
-    <script src="/pwa-install-controller.js?v=5"></script>
+    <script src="/pwa-install-controller.js?v=7"></script>
     <script>
       /* One-time: clear stale SW cache so new PWA install code loads (?pwa-reset=1) */
       (function () {
@@ -150,7 +150,7 @@
       }
     })();
   </script>
-  <script type="module" crossorigin src="/assets/index-jCsVk30s.js?v=31"></script>
+  <script type="module" crossorigin src="/assets/index-jCsVk30s.js?v=32"></script>
   <link rel="modulepreload" crossorigin href="/assets/react-vendor-r3yYxNhK.js">
   <link rel="modulepreload" crossorigin href="/assets/ui-vendor--4o8o4K1.js">
   <link rel="modulepreload" crossorigin href="/assets/firebase-vendor-BYKC5ZuK.js">
@@ -181,15 +181,21 @@
   </head>
 <body>
         <script type="module">
-      /* Register offline sync handlers early (party/item/expense/invoice) */
+      /* Register offline sync handlers early — same URLs as app imports (no ?v= duplicate modules) */
       (function () {
         var seq = [
-          '/assets/partyService-Wzcg7Wjf.js?v=48',
-          '/assets/itemService-sgFD7LVj.js?v=48',
-          '/assets/expenseService-C2uEJ3jV.js?v=48',
-          '/assets/invoiceService-wndk85Fv.js?v=48'
+          '/assets/partyService-Wzcg7Wjf.js',
+          '/assets/itemService-sgFD7LVj.js',
+          '/assets/expenseService-C2uEJ3jV.js',
+          '/assets/invoiceService-wndk85Fv.js'
         ];
-        seq.forEach(function (u) { import(u).catch(function () {}); });
+        seq.forEach(function (u) {
+          import(u).then(function () {
+            console.log('[SandraSync] Preloaded', u);
+          }).catch(function (e) {
+            console.warn('[SandraSync] Preload failed', u, e);
+          });
+        });
       })();
     </script>
     <div id="root"></div>

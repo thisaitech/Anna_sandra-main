@@ -10,13 +10,29 @@
       "npm --prefix \"$RESOURCE_DIR\" run build"
     ]
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "hosting": {
     "site": "petshop-9dee5",
     "public": "dist",
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/*.exe",
+      "**/*.apk"
+    ],
+    "headers": [
+      {
+        "source": "/downloads/installer-manifest.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, max-age=0"
+          }
+        ]
+      }
     ],
     "rewrites": [
       {

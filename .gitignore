@@ -31,3 +31,10 @@ Thumbs.db
 *.zip
 firebase-debug.log
 client-export/
+
+# Desktop/Android installers (build locally; host via Firebase Storage)
+dist/downloads/*.exe
+dist/downloads/*.apk
+electron-build/node_modules/
+electron-build/release/
+electron-build/dist/

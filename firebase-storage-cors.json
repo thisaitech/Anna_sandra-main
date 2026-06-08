@@ -1,8 +1,13 @@
 [
   {
-    "origin": ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:5173", "https://bill-anna.web.app", "https://bill-anna.firebaseapp.com"],
-    "method": ["GET", "POST", "PUT", "DELETE", "HEAD"],
-    "maxAgeSeconds": 3600,
-    "responseHeader": ["Content-Type", "Authorization", "Content-Length", "User-Agent", "x-goog-resumable"]
+    "origin": [
+      "http://localhost:3002",
+      "http://127.0.0.1:19847",
+      "https://petshop-9dee5.web.app",
+      "https://petshop-9dee5.firebaseapp.com"
+    ],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"],
+    "maxAgeSeconds": 3600
   }
 ]

@@ -44,3 +44,13 @@ body.sandra-sync-active { padding-bottom: 0 !important; }
   align-items: flex-end;
   gap: 2px;
 }
+
+/* Desktop/Electron: match web sidebar from 1024px (lg), not only 1280px (xl) */
+@media (min-width: 1024px) {
+  .hidden.xl\:flex.fixed.left-0.top-0.bottom-0 {
+    display: flex !important;
+  }
+}
+body.sandra-desktop-app .hidden.xl\:flex.fixed.left-0.top-0.bottom-0 {
+  display: flex !important;
+}

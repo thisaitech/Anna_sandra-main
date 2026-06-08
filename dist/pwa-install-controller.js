@@ -1,12 +1,19 @@
 /**
- * PWA install — native prompt() only. No banners, toasts, or instruction modals.
- * Install button is plain HTML (not React) so service-worker-cached Login cannot break it.
+ * Offline app download — validated installer delivery (v6).
+ * Prevents saving HTML/placeholder as .exe (Firebase SPA rewrite / Spark hosting limit).
  */
 (function () {
   'use strict';
-  var LOG = '[PWA]';
-  var BTN_ID = 'pwa-native-install-btn';
-  var STYLE_ID = 'pwa-native-install-style';
+
+  var LOG = '[DOWNLOAD_APP]';
+  var BTN_ID = 'offline-download-btn';
+  var DROPDOWN_ID = 'offline-download-dropdown';
+  var STYLE_ID = 'offline-download-style';
+  var TOAST_ID = 'offline-download-toast';
+  var MANIFEST_URL = '/downloads/installer-manifest.json';
+
+  var manifest = null;
+  var manifestLoading = null;
 
   function log() {
     var a = Array.prototype.slice.call(arguments);
@@ -14,34 +21,6 @@
     console.log.apply(console, a);
   }
 
-  var api = (window.__PWA_INSTALL__ = window.__PWA_INSTALL__ || {});
-  api.deferred = api.deferred || null;
-  api.state = 'checking';
-
-  function isStandalone() {
-    try {
-      return (
-        window.matchMedia('(display-mode: standalone)').matches ||
-        window.matchMedia('(display-mode: fullscreen)').matches ||
-        navigator.standalone === true
-      );
-    } catch (e) {
-      return false;
-    }
-  }
-
-  function emit() {
-    window.dispatchEvent(new CustomEvent('pwa-state-change', { detail: { state: api.state } }));
-  }
-
-  function setState(state) {
-    api.state = state;
-    log('state →', state);
-    emit();
-    updateButton();
-  }
-
-  /** Install UI only on login — hidden on dashboard, POS, and all other routes */
   function isLoginPage() {
     try {
       var p = (window.location.pathname || '').replace(/\/$/, '') || '/';
@@ -51,9 +30,273 @@
     }
   }
 
+  function isHostedSite() {
+    var h = (location.hostname || '').toLowerCase();
+    return h.indexOf('web.app') >= 0 || h.indexOf('firebaseapp.com') >= 0;
+  }
+
+  function isLocalDev() {
+    var h = (location.hostname || '').toLowerCase();
+    return h === 'localhost' || h === '127.0.0.1';
+  }
+
+  function showToast(title, message, isError) {
+    var existing = document.getElementById(TOAST_ID);
+    if (existing) existing.remove();
+
+    var box = document.createElement('div');
+    box.id = TOAST_ID;
+    box.setAttribute('role', 'alert');
+    box.style.cssText =
+      'position:fixed;top:72px;right:16px;z-index:2147483647;max-width:360px;padding:16px 18px;' +
+      'border-radius:12px;font:500 14px/1.45 system-ui,sans-serif;box-shadow:0 12px 32px rgba(0,0,0,.18);' +
+      (isError
+        ? 'background:#fef2f2;color:#991b1b;border:1px solid #fecaca;'
+        : 'background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;');
+
+    box.innerHTML =
+      '<div style="font-weight:700;margin-bottom:6px">' +
+      title +
+      '</div><div>' +
+      message +
+      '</div>' +
+      '<button type="button" style="margin-top:10px;padding:6px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:600;' +
+      (isError ? 'background:#dc2626;color:#fff' : 'background:#059669;color:#fff') +
+      '">OK</button>';
+
+    box.querySelector('button').addEventListener('click', function () {
+      box.remove();
+    });
+    (document.body || document.documentElement).appendChild(box);
+    setTimeout(function () {
+      if (box.parentNode) box.remove();
+    }, 12000);
+  }
+
+  function loadManifest() {
+    if (manifest) return Promise.resolve(manifest);
+    if (manifestLoading) return manifestLoading;
+    manifestLoading = fetch(MANIFEST_URL + '?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('manifest HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        manifest = data;
+        log('manifest loaded', data.windows && data.windows.sizeBytes);
+        return data;
+      })
+      .catch(function (err) {
+        log('manifest load failed', err);
+        manifestLoading = null;
+        return null;
+      });
+    return manifestLoading;
+  }
+
+  function pickWindowsUrl(m) {
+    if (!m || !m.windows) return null;
+    if (isHostedSite() && m.windows.storageUrl) return m.windows.storageUrl;
+    if (isLocalDev() || !isHostedSite()) return m.windows.localPath;
+    return m.windows.storageUrl || null;
+  }
+
+  function pickAndroidUrl(m) {
+    if (!m || !m.android || !m.android.available) return null;
+    if (isHostedSite() && m.android.storageUrl) return m.android.storageUrl;
+    if (isLocalDev() || !isHostedSite()) return m.android.localPath;
+    return m.android.storageUrl || m.android.localPath || null;
+  }
+
+  function validateResponse(meta, minSize) {
+    var ct = (meta.contentType || '').toLowerCase();
+    var len = meta.contentLength;
+    if (ct.indexOf('text/html') >= 0) {
+      return 'Server returned HTML instead of installer (hosting misconfiguration).';
+    }
+    if (len > 0 && len < minSize) {
+      return 'Installer too small (' + len + ' bytes). File is incomplete or corrupted.';
+    }
+    return null;
+  }
+
+  function probeUrl(url, minSize) {
+    return fetch(url, { method: 'HEAD', cache: 'no-store' })
+      .then(function (head) {
+        var meta = {
+          contentType: head.headers.get('content-type') || '',
+          contentLength: parseInt(head.headers.get('content-length') || '0', 10) || 0,
+        };
+        var err = validateResponse(meta, minSize);
+        if (err) return Promise.reject(new Error(err));
+        if (meta.contentLength >= minSize) return meta;
+        return fetch(url, { headers: { Range: 'bytes=0-1' }, cache: 'no-store' }).then(function (r) {
+          if (!r.ok && r.status !== 206) throw new Error('Download probe failed (HTTP ' + r.status + ')');
+          var ct2 = (r.headers.get('content-type') || meta.contentType).toLowerCase();
+          if (ct2.indexOf('text/html') >= 0) {
+            throw new Error('Server returned HTML instead of installer.');
+          }
+          return r.arrayBuffer().then(function (buf) {
+            var b = new Uint8Array(buf);
+            if (b.length < 2 || b[0] !== 0x4d || b[1] !== 0x5a) {
+              throw new Error('Installer Corrupted — file is not a valid Windows executable.');
+            }
+            return meta;
+          });
+        });
+      });
+  }
+
+  function triggerBlobDownload(blob, fileName) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 500);
+  }
+
+  function validateApkBlob(blob, minSize) {
+    if (blob.size < minSize) {
+      throw new Error('APK too small (' + blob.size + ' bytes). Please download again.');
+    }
+    return blob.slice(0, 2).arrayBuffer().then(function (buf) {
+      var b = new Uint8Array(buf);
+      if (b.length < 2 || b[0] !== 0x50 || b[1] !== 0x4b) {
+        throw new Error('Installer Corrupted — APK is not a valid ZIP archive.');
+      }
+      return blob;
+    });
+  }
+
+  function downloadAndroid(ev) {
+    if (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+    loadManifest().then(function (m) {
+      var apk = m && m.android;
+      if (!apk || !apk.available) {
+        showToast(
+          'Android Installer Download Failed',
+          'APK not built yet. Run .\\build-android-apk.ps1 on a machine with Android SDK.',
+          true
+        );
+        return;
+      }
+      var minSize = apk.minSizeBytes || 5 * 1024 * 1024;
+      var fileName = apk.fileName || 'Sandra_ERP.apk';
+      var url = pickAndroidUrl(m);
+      if (!url) {
+        showToast('Android Installer Download Failed', 'No download URL configured.', true);
+        return;
+      }
+      probeUrl(url, minSize)
+        .then(function () {
+          return fetch(url, { cache: 'no-store' });
+        })
+        .then(function (r) {
+          if (!r.ok) throw new Error('Download failed (HTTP ' + r.status + ')');
+          return r.blob();
+        })
+        .then(function (blob) {
+          return validateApkBlob(blob, minSize);
+        })
+        .then(function (blob) {
+          triggerBlobDownload(blob, fileName);
+          showToast('Download started', fileName + ' (' + Math.round(blob.size / 1024 / 1024) + ' MB)', false);
+        })
+        .catch(function (err) {
+          var msg = err && err.message ? err.message : 'Unknown error';
+          showToast('Android Installer Download Failed', 'Please Retry.\n\n' + msg, true);
+        });
+    });
+  }
+
+  function downloadWindows(ev) {
+    if (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+
+    loadManifest().then(function (m) {
+      var win = m && m.windows;
+      var minSize = (win && win.minSizeBytes) || 50 * 1024 * 1024;
+      var fileName = (win && win.fileName) || 'Sandra_ERP_Setup.exe';
+      var url = pickWindowsUrl(m);
+
+      if (!url) {
+        showToast(
+          'Windows Installer Download Failed',
+          'No download URL configured. Ask your admin to upload the installer to Firebase Storage, or build locally with .\\build-desktop.ps1',
+          true
+        );
+        return;
+      }
+
+      if (isHostedSite() && !m.windows.storageUrl) {
+        showToast(
+          'Windows Installer Download Failed',
+          'Live website cannot host .exe files. Your admin must upload the installer to Firebase Storage (run: node tools\\upload-installer-storage.cjs).',
+          true
+        );
+        return;
+      }
+
+      log('downloading', url);
+      showToast('Preparing download…', 'Validating installer integrity before download.', false);
+
+      probeUrl(url, minSize)
+        .then(function () {
+          return fetch(url, { cache: 'no-store' });
+        })
+        .then(function (r) {
+          if (!r.ok) throw new Error('Download failed (HTTP ' + r.status + ')');
+          var ct = (r.headers.get('content-type') || '').toLowerCase();
+          if (ct.indexOf('text/html') >= 0) {
+            throw new Error('Server returned HTML instead of installer.');
+          }
+          return r.blob();
+        })
+        .then(function (blob) {
+          if (blob.size < minSize) {
+            throw new Error('Installer too small (' + blob.size + ' bytes). Please download again.');
+          }
+          return blob.slice(0, 2).arrayBuffer().then(function (buf) {
+            var b = new Uint8Array(buf);
+            if (b.length < 2 || b[0] !== 0x4d || b[1] !== 0x5a) {
+              throw new Error('Installer Corrupted — please download again.');
+            }
+            return blob;
+          });
+        })
+        .then(function (blob) {
+          var toast = document.getElementById(TOAST_ID);
+          if (toast) toast.remove();
+          triggerBlobDownload(blob, fileName);
+          showToast('Download started', fileName + ' (' + Math.round(blob.size / 1024 / 1024) + ' MB)', false);
+          log('download OK', blob.size);
+        })
+        .catch(function (err) {
+          log('download failed', err);
+          var msg = err && err.message ? err.message : 'Unknown error';
+          if (msg.indexOf('Corrupted') >= 0) {
+            showToast('Installer Corrupted', 'Please Download Again.\n\n' + msg, true);
+          } else {
+            showToast('Windows Installer Download Failed', 'Please Retry.\n\n' + msg, true);
+          }
+        });
+    });
+  }
+
   function hookSpaNavigation() {
-    if (window.__PWA_LOGIN_ROUTE_HOOK__) return;
-    window.__PWA_LOGIN_ROUTE_HOOK__ = true;
+    if (window.__DOWNLOAD_HOOK__) return;
+    window.__DOWNLOAD_HOOK__ = true;
     var push = history.pushState;
     var replace = history.replaceState;
     history.pushState = function () {
@@ -74,44 +317,11 @@
     if (!btn) return;
     if (!isLoginPage()) {
       btn.style.display = 'none';
+      var d = document.getElementById(DROPDOWN_ID);
+      if (d) d.style.display = 'none';
       return;
     }
-    if (api.state === 'standalone') {
-      btn.style.display = 'none';
-      return;
-    }
-    if (api.state === 'already_installed') {
-      btn.style.display = 'flex';
-      btn.innerHTML =
-        '<svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128 24a8 8 0 0 0-8 8v40.85l-33.65-19.39a8 8 0 0 0-8 13.86l41.42 23.94-41.42 23.94a8 8 0 1 0 8 13.86L120 136.15V177a8 8 0 0 0 16 0v-40.85l33.65 19.39a8 8 0 1 0 8-13.86l-41.42-23.94 41.42-23.94a8 8 0 0 0-8-13.86L136 72.85V32a8 8 0 0 0-8-8Z"/></svg><span>Open App</span>';
-      btn.style.background = '#16a34a';
-      btn.style.color = '#fff';
-      btn.style.borderColor = '#15803d';
-      btn.disabled = false;
-      btn.title = 'Open installed Sandra ERP (same as address bar Open in app)';
-      return;
-    }
-    if (api.state === 'installable') {
-      btn.style.display = 'flex';
-      btn.innerHTML =
-        '<svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224 144v64a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8v-64a8 8 0 0 1 16 0v56h176v-56a8 8 0 0 1 16 0Zm-101.66 2.34a8 8 0 0 0 11.32 0l40-40a8 8 0 0 0-11.32-11.32L136 116.69V24a8 8 0 0 0-16 0v92.69l-26.34-26.35a8 8 0 0 0-11.32 11.32Z"/></svg><span>Install App</span>';
-      btn.style.background = 'rgba(255,255,255,.95)';
-      btn.style.color = '#4f46e5';
-      btn.style.borderColor = 'rgba(79,70,229,.2)';
-      btn.title = 'Install Sandra ERP — native browser install';
-      return;
-    }
-    if (api.state === 'checking' || api.state === 'waiting') {
-      btn.style.display = 'flex';
-      btn.innerHTML =
-        '<svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224 144v64a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8v-64a8 8 0 0 1 16 0v56h176v-56a8 8 0 0 1 16 0Zm-101.66 2.34a8 8 0 0 0 11.32 0l40-40a8 8 0 0 0-11.32-11.32L136 116.69V24a8 8 0 0 0-16 0v92.69l-26.34-26.35a8 8 0 0 0-11.32 11.32Z"/></svg><span>Install App</span>';
-      btn.style.background = 'rgba(255,255,255,.95)';
-      btn.style.color = '#4f46e5';
-      btn.style.borderColor = 'rgba(79,70,229,.2)';
-      btn.title = 'Preparing install…';
-      return;
-    }
-    btn.style.display = 'none';
+    btn.style.display = 'flex';
   }
 
   function injectStyles() {
@@ -121,153 +331,70 @@
     s.textContent =
       '#' +
       BTN_ID +
-      '{position:fixed;top:16px;right:16px;z-index:2147483646;display:none;align-items:center;gap:8px;padding:10px 16px;border:1px solid rgba(79,70,229,.2);border-radius:12px;font:600 14px system-ui,sans-serif;cursor:pointer;pointer-events:auto;box-shadow:0 4px 14px rgba(0,0,0,.12);touch-action:manipulation}' +
+      '{position:fixed;top:16px;right:16px;z-index:2147483646;display:none;align-items:center;gap:8px;padding:10px 16px;background:rgba(255,255,255,.95);color:#4f46e5;border:1px solid rgba(79,70,229,.2);border-radius:12px;font:600 14px system-ui,sans-serif;cursor:pointer;pointer-events:auto;box-shadow:0 4px 14px rgba(0,0,0,.12);touch-action:manipulation}' +
       '#' +
       BTN_ID +
       ':hover{box-shadow:0 6px 20px rgba(0,0,0,.15)}' +
       '#' +
-      BTN_ID +
-      ':disabled{opacity:.7;cursor:default}';
+      DROPDOWN_ID +
+      '{position:fixed;top:60px;right:16px;z-index:2147483646;display:none;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,.1);overflow:hidden;min-width:240px}' +
+      '#' +
+      DROPDOWN_ID +
+      ' button,#' +
+      DROPDOWN_ID +
+      ' a{display:flex;align-items:center;gap:12px;padding:14px 16px;color:#374151;text-decoration:none;font:500 14px system-ui,sans-serif;border:0;border-bottom:1px solid #f3f4f6;background:#fff;width:100%;text-align:left;cursor:pointer;transition:background 0.2s ease}' +
+      '#' +
+      DROPDOWN_ID +
+      ' button:hover,#' +
+      DROPDOWN_ID +
+      ' a:hover{background:#f9fafb}' +
+      '#' +
+      DROPDOWN_ID +
+      ' svg{color:#6b7280}';
     document.head.appendChild(s);
   }
 
   function injectButton() {
     if (document.getElementById(BTN_ID)) return;
     injectStyles();
+
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.id = BTN_ID;
+    btn.innerHTML =
+      '<svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor"><path d="M224 144v64a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8v-64a8 8 0 0 1 16 0v56h176v-56a8 8 0 0 1 16 0Zm-101.66 2.34a8 8 0 0 0 11.32 0l40-40a8 8 0 0 0-11.32-11.32L136 116.69V24a8 8 0 0 0-16 0v92.69l-26.34-26.35a8 8 0 0 0-11.32 11.32Z"/></svg><span>Download Offline App</span>';
+
+    var dropdown = document.createElement('div');
+    dropdown.id = DROPDOWN_ID;
+    dropdown.innerHTML =
+      '<button type="button" id="sandra-win-download"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M2,22L22,22L22,2L2,2M11,11L11,4L20,4L20,11M11,20L11,13L20,13L20,20M4,11L4,4L9,4L9,11M4,20L4,13L9,13L9,20Z"/></svg> Windows App (.exe)</button>' +
+      '<button type="button" id="sandra-apk-download"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6,9.48L19.45,6.27L18.58,5.77L16.67,9.08C15.2,8.4 13.63,8 12,8C10.37,8 8.8,8.4 7.33,9.08L5.42,5.77L4.55,6.27L6.4,9.48C3.3,11.25 1.25,14.46 1,18.25H23C22.75,14.46 20.7,11.25 17.6,9.48M7,15.25C6.31,15.25 5.75,14.69 5.75,14C5.75,13.31 6.31,12.75 7,12.75C7.69,12.75 8.25,13.31 8.25,14C8.25,14.69 7.69,15.25 7,15.25M17,15.25C16.31,15.25 15.75,14.69 15.75,14C15.75,13.31 16.31,12.75 17,12.75C17.69,12.75 18.25,13.31 18.25,14C18.25,14.69 17.69,15.25 17,15.25Z"/></svg> Android App (.apk)</button>';
+
+    dropdown.querySelector('#sandra-win-download').addEventListener('click', downloadWindows);
+    dropdown.querySelector('#sandra-apk-download').addEventListener('click', downloadAndroid);
+
     btn.addEventListener('click', function (ev) {
       ev.preventDefault();
       ev.stopPropagation();
-      api.install();
+      var d = document.getElementById(DROPDOWN_ID);
+      d.style.display = d.style.display === 'flex' ? 'none' : 'flex';
     });
+
+    document.addEventListener('click', function (ev) {
+      if (!btn.contains(ev.target) && !dropdown.contains(ev.target)) {
+        dropdown.style.display = 'none';
+      }
+    });
+
     (document.body || document.documentElement).appendChild(btn);
+    (document.body || document.documentElement).appendChild(dropdown);
     updateButton();
   }
-
-  window.addEventListener(
-    'beforeinstallprompt',
-    function (e) {
-      log('beforeinstallprompt fired');
-      e.preventDefault();
-      api.deferred = e;
-      log('deferredPrompt stored:', !!api.deferred);
-      setState('installable');
-    },
-    { capture: true }
-  );
-
-  window.addEventListener('appinstalled', function () {
-    log('appinstalled — User accepted installation');
-    api.deferred = null;
-    try {
-      localStorage.setItem('pwa_installed', '1');
-    } catch (e) {}
-    setState('already_installed');
-  });
-
-  function detectInstalled() {
-    if (isStandalone()) {
-      setState('standalone');
-      return Promise.resolve(true);
-    }
-    try {
-      if (localStorage.getItem('pwa_installed') === '1') {
-        log('localStorage pwa_installed');
-        setState('already_installed');
-        return Promise.resolve(true);
-      }
-    } catch (e) {}
-    if ('getInstalledRelatedApps' in navigator) {
-      return navigator.getInstalledRelatedApps().then(function (apps) {
-        if (apps && apps.length > 0) {
-          log('getInstalledRelatedApps: already installed');
-          try {
-            localStorage.setItem('pwa_installed', '1');
-          } catch (e) {}
-          setState('already_installed');
-          return true;
-        }
-        return false;
-      });
-    }
-    return Promise.resolve(false);
-  }
-
-  function runPrompt(prompt) {
-    log('Calling deferredPrompt.prompt() — Installation prompt opened');
-    return prompt
-      .prompt()
-      .then(function () {
-        return prompt.userChoice;
-      })
-      .then(function (choice) {
-        log('User choice:', choice && choice.outcome);
-        if (choice && choice.outcome === 'accepted') {
-          log('User accepted installation');
-          api.deferred = null;
-          setState('already_installed');
-        } else if (choice && choice.outcome === 'dismissed') {
-          log('User dismissed installation');
-        }
-      });
-  }
-
-  api.install = function () {
-    log('Install App clicked');
-
-    if (isStandalone()) {
-      log('Already in standalone mode');
-      return Promise.resolve();
-    }
-
-    if (api.state === 'already_installed') {
-      log('Already installed — opening app');
-      window.location.href = '/';
-      return Promise.resolve();
-    }
-
-    var prompt = api.deferred;
-    if (prompt && typeof prompt.prompt === 'function') {
-      return runPrompt(prompt).catch(function (err) {
-        console.error(LOG, 'prompt() failed:', err);
-      });
-    }
-
-    log('No deferredPrompt — beforeinstallprompt did not fire yet');
-    return detectInstalled().then(function (installed) {
-      if (installed) return;
-      log('Reason: Chrome has not fired beforeinstallprompt (app may need reinstall from chrome://apps, or use address-bar install chip)');
-    });
-  };
-
-  window.__PWA__ = api;
 
   function boot() {
     hookSpaNavigation();
     injectButton();
-    detectInstalled().then(function (installed) {
-      if (!installed && api.deferred) setState('installable');
-      else if (!installed && !api.deferred) setState('checking');
-    });
-    setTimeout(function () {
-      if (api.state === 'checking' || api.state === 'waiting') {
-        detectInstalled().then(function (installed) {
-          if (!installed && !api.deferred && api.state === 'checking') setState('waiting');
-        });
-      }
-    }, 2500);
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js', { scope: '/' })
-        .then(function (reg) {
-          log('Service worker registered:', reg.scope);
-        })
-        .catch(function (e) {
-          console.warn(LOG, 'SW registration failed:', e);
-        });
-    }
+    loadManifest();
   }
 
   if (document.readyState === 'loading') {
@@ -276,5 +403,5 @@
     boot();
   }
 
-  log('controller v5 loaded (login page only)');
+  log('controller v7 loaded (validated download)');
 })();
