@@ -1,17 +1,17 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-06-08T16:24:12.209Z",
+  "generatedAt": "2026-06-09T02:14:16.029Z",
   "windows": {
     "fileName": "Sandra_ERP_Setup.exe",
-    "sizeBytes": 80813272,
-    "sha256": "28c81db5f3775ce188c4735fd680a418e0f99e1b3466bd19d5c3525bfa274bbb",
+    "sizeBytes": 161607164,
+    "sha256": "7d225b2d39618a955ad8fa9d2b2c20551287abc00f844bf42188dcc6dcef3efe",
     "minSizeBytes": 52428800,
-    "localPath": "/downloads/Sandra_ERP_Setup.exe",
+    "localPath": "/downloads/windows/Sandra_ERP_Setup.exe",
     "storageUrl": "https://firebasestorage.googleapis.com/v0/b/petshop-9dee5.firebasestorage.app/o/downloads%2FSandra_ERP_Setup.exe?alt=media"
   },
   "android": {
     "fileName": "Sandra_ERP.apk",
-    "localPath": "/downloads/Sandra_ERP.apk",
+    "localPath": "/downloads/android/Sandra_ERP.apk",
     "available": false
   },
   "hostingNote": "Firebase Hosting (Spark) cannot serve .exe files. Live site must use storageUrl; local/Electron use localPath."

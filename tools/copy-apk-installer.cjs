@@ -15,10 +15,10 @@ const candidates = [
 ].filter(Boolean);
 
 const apkSrc = candidates.find((p) => fs.existsSync(p) && fs.statSync(p).size > 1024 * 1024);
-const outDir = path.join(root, 'dist', 'downloads');
+const outDir = path.join(root, 'dist', 'downloads', 'android');
 const outApk = path.join(outDir, 'Sandra_ERP.apk');
-const ebOut = path.join(root, 'electron-build', 'dist', 'downloads', 'Sandra_ERP.apk');
-const manifestPath = path.join(outDir, 'installer-manifest.json');
+const ebOut = path.join(root, 'electron-build', 'dist', 'downloads', 'android', 'Sandra_ERP.apk');
+const manifestPath = path.join(root, 'dist', 'downloads', 'installer-manifest.json');
 
 if (!apkSrc) {
   console.error('No APK found (need >1MB). Build with: .\\build-android-apk.ps1');
@@ -41,7 +41,7 @@ manifest.android = {
   sizeBytes: stat.size,
   sha256,
   minSizeBytes: 5 * 1024 * 1024,
-  localPath: '/downloads/Sandra_ERP.apk',
+  localPath: '/downloads/android/Sandra_ERP.apk',
   storageUrl:
     'https://firebasestorage.googleapis.com/v0/b/petshop-9dee5.firebasestorage.app/o/downloads%2FSandra_ERP.apk?alt=media',
   available: true,

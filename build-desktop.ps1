@@ -3,9 +3,9 @@ $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 $eb = Join-Path $root "electron-build"
 
-Write-Host "Sandra ERP — desktop build" -ForegroundColor Cyan
+Write-Host "Sandra ERP - desktop build" -ForegroundColor Cyan
 
-# Sync web dist into electron-build/dist (skip downloads — installer copied after build)
+# Sync web dist into electron-build/dist (skip downloads - installer copied after build)
 Write-Host "Syncing dist -> electron-build/dist..." -ForegroundColor Yellow
 $srcDist = Join-Path $root "dist"
 $dstDist = Join-Path $eb "dist"

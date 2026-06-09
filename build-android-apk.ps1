@@ -19,4 +19,4 @@ try {
 }
 
 node (Join-Path $root "tools\copy-apk-installer.cjs")
-Write-Host "APK ready: dist\downloads\Sandra_ERP.apk" -ForegroundColor Green
+Write-Host "APK ready: dist\downloads\android\Sandra_ERP.apk" -ForegroundColor Green

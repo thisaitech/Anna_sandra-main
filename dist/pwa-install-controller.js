@@ -94,18 +94,80 @@
     return manifestLoading;
   }
 
+  var winAvailable = false;
+  var androidAvailable = false;
+
+  function checkInstallerAvailability() {
+    var winUrl = '/downloads/windows/Sandra_ERP_Setup.exe';
+    var apkUrl = '/downloads/android/Sandra_ERP.apk';
+
+    var checkWin = fetch(winUrl, { method: 'HEAD', cache: 'no-store' })
+      .then(function (r) {
+        var ct = (r.headers.get('content-type') || '').toLowerCase();
+        if (r.ok && ct.indexOf('text/html') === -1) {
+          winAvailable = true;
+        }
+      })
+      .catch(function () {});
+
+    var checkAndroid = fetch(apkUrl, { method: 'HEAD', cache: 'no-store' })
+      .then(function (r) {
+        var ct = (r.headers.get('content-type') || '').toLowerCase();
+        if (r.ok && ct.indexOf('text/html') === -1) {
+          androidAvailable = true;
+        }
+      })
+      .catch(function () {});
+
+    return Promise.all([checkWin, checkAndroid]).then(function () {
+      updateButtonStates();
+    });
+  }
+
+  function updateButtonStates() {
+    var winBtn = document.getElementById('sandra-win-download');
+    var apkBtn = document.getElementById('sandra-apk-download');
+    if (!winBtn || !apkBtn) return;
+
+    if (winAvailable) {
+      winBtn.disabled = false;
+      winBtn.style.opacity = '1';
+      winBtn.style.cursor = 'pointer';
+      winBtn.style.background = '#fff';
+      winBtn.style.color = '#374151';
+      winBtn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M2,22L22,22L22,2L2,2M11,11L11,4L20,4L20,11M11,20L11,13L20,13L20,20M4,11L4,4L9,4L9,11M4,20L4,13L9,13L9,20Z"/></svg> Windows App (.exe)';
+    } else {
+      winBtn.disabled = true;
+      winBtn.style.opacity = '0.6';
+      winBtn.style.cursor = 'not-allowed';
+      winBtn.style.background = '#f9fafb';
+      winBtn.style.color = '#9ca3af';
+      winBtn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="color:#d1d5db"><path d="M2,22L22,22L22,2L2,2M11,11L11,4L20,4L20,11M11,20L11,13L20,13L20,20M4,11L4,4L9,4L9,11M4,20L4,13L9,13L9,20Z"/></svg><div style="display:flex;flex-direction:column;gap:2px"><span>Windows App - Build Not Available</span><span style="font-size:11px;color:#9ca3af;font-weight:400">Contact Administrator</span></div>';
+    }
+
+    if (androidAvailable) {
+      apkBtn.disabled = false;
+      apkBtn.style.opacity = '1';
+      apkBtn.style.cursor = 'pointer';
+      apkBtn.style.background = '#fff';
+      apkBtn.style.color = '#374151';
+      apkBtn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6,9.48L19.45,6.27L18.58,5.77L16.67,9.08C15.2,8.4 13.63,8 12,8C10.37,8 8.8,8.4 7.33,9.08L5.42,5.77L4.55,6.27L6.4,9.48C3.3,11.25 1.25,14.46 1,18.25H23C22.75,14.46 20.7,11.25 17.6,9.48M7,15.25C6.31,15.25 5.75,14.69 5.75,14C5.75,13.31 6.31,12.75 7,12.75C7.69,12.75 8.25,13.31 8.25,14C8.25,14.69 7.69,15.25 7,15.25M17,15.25C16.31,15.25 15.75,14.69 15.75,14C15.75,13.31 16.31,12.75 17,12.75C17.69,12.75 18.25,13.31 18.25,14C18.25,14.69 17.69,15.25 17,15.25Z"/></svg> Android App (.apk)';
+    } else {
+      apkBtn.disabled = true;
+      apkBtn.style.opacity = '0.6';
+      apkBtn.style.cursor = 'not-allowed';
+      apkBtn.style.background = '#f9fafb';
+      apkBtn.style.color = '#9ca3af';
+      apkBtn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="color:#d1d5db"><path d="M17.6,9.48L19.45,6.27L18.58,5.77L16.67,9.08C15.2,8.4 13.63,8 12,8C10.37,8 8.8,8.4 7.33,9.08L5.42,5.77L4.55,6.27L6.4,9.48C3.3,11.25 1.25,14.46 1,18.25H23C22.75,14.46 20.7,11.25 17.6,9.48M7,15.25C6.31,15.25 5.75,14.69 5.75,14C5.75,13.31 6.31,12.75 7,12.75C7.69,12.75 8.25,13.31 8.25,14C8.25,14.69 7.69,15.25 7,15.25M17,15.25C16.31,15.25 15.75,14.69 15.75,14C15.75,13.31 16.31,12.75 17,12.75C17.69,12.75 18.25,13.31 18.25,14C18.25,14.69 17.69,15.25 17,15.25Z"/></svg><div style="display:flex;flex-direction:column;gap:2px"><span>Android App - Build Not Available</span><span style="font-size:11px;color:#9ca3af;font-weight:400">Contact Administrator</span></div>';
+    }
+  }
+
   function pickWindowsUrl(m) {
-    if (!m || !m.windows) return null;
-    if (isHostedSite() && m.windows.storageUrl) return m.windows.storageUrl;
-    if (isLocalDev() || !isHostedSite()) return m.windows.localPath;
-    return m.windows.storageUrl || null;
+    return '/downloads/windows/Sandra_ERP_Setup.exe';
   }
 
   function pickAndroidUrl(m) {
-    if (!m || !m.android || !m.android.available) return null;
-    if (isHostedSite() && m.android.storageUrl) return m.android.storageUrl;
-    if (isLocalDev() || !isHostedSite()) return m.android.localPath;
-    return m.android.storageUrl || m.android.localPath || null;
+    return '/downloads/android/Sandra_ERP.apk';
   }
 
   function validateResponse(meta, minSize) {
@@ -179,18 +241,14 @@
       ev.preventDefault();
       ev.stopPropagation();
     }
+    if (!androidAvailable) {
+      showToast('Android Installer Download Failed', 'Build Not Available.\n\nContact Administrator', true);
+      return;
+    }
     loadManifest().then(function (m) {
       var apk = m && m.android;
-      if (!apk || !apk.available) {
-        showToast(
-          'Android Installer Download Failed',
-          'APK not built yet. Run .\\build-android-apk.ps1 on a machine with Android SDK.',
-          true
-        );
-        return;
-      }
-      var minSize = apk.minSizeBytes || 5 * 1024 * 1024;
-      var fileName = apk.fileName || 'Sandra_ERP.apk';
+      var minSize = (apk && apk.minSizeBytes) || 5 * 1024 * 1024;
+      var fileName = (apk && apk.fileName) || 'Sandra_ERP.apk';
       var url = pickAndroidUrl(m);
       if (!url) {
         showToast('Android Installer Download Failed', 'No download URL configured.', true);
@@ -223,6 +281,10 @@
       ev.preventDefault();
       ev.stopPropagation();
     }
+    if (!winAvailable) {
+      showToast('Windows Installer Download Failed', 'Build Not Available.\n\nContact Administrator', true);
+      return;
+    }
 
     loadManifest().then(function (m) {
       var win = m && m.windows;
@@ -233,16 +295,7 @@
       if (!url) {
         showToast(
           'Windows Installer Download Failed',
-          'No download URL configured. Ask your admin to upload the installer to Firebase Storage, or build locally with .\\build-desktop.ps1',
-          true
-        );
-        return;
-      }
-
-      if (isHostedSite() && !m.windows.storageUrl) {
-        showToast(
-          'Windows Installer Download Failed',
-          'Live website cannot host .exe files. Your admin must upload the installer to Firebase Storage (run: node tools\\upload-installer-storage.cjs).',
+          'No download URL configured.',
           true
         );
         return;
@@ -395,6 +448,7 @@
     hookSpaNavigation();
     injectButton();
     loadManifest();
+    checkInstallerAvailability();
   }
 
   if (document.readyState === 'loading') {

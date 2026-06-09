@@ -9,10 +9,10 @@ const { execSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
 const releaseExe = path.join(root, 'electron-build', 'release', 'Sandra ERP Setup 1.0.0.exe');
-const outDir = path.join(root, 'dist', 'downloads');
+const outDir = path.join(root, 'dist', 'downloads', 'windows');
 const outExe = path.join(outDir, 'Sandra_ERP_Setup.exe');
-const manifestPath = path.join(outDir, 'installer-manifest.json');
-const electronOutDir = path.join(root, 'electron-build', 'dist', 'downloads');
+const manifestPath = path.join(root, 'dist', 'downloads', 'installer-manifest.json');
+const electronOutDir = path.join(root, 'electron-build', 'dist', 'downloads', 'windows');
 const electronOutExe = path.join(electronOutDir, 'Sandra_ERP_Setup.exe');
 
 const STORAGE_URL =
@@ -33,30 +33,35 @@ for (const dir of [outDir, electronOutDir]) {
 fs.copyFileSync(releaseExe, outExe);
 fs.copyFileSync(releaseExe, electronOutExe);
 
-const apkSrc = path.join(electronOutDir, 'Sandra_ERP.apk');
-const manifest = {
-  version: '1.0.0',
-  generatedAt: new Date().toISOString(),
-  windows: {
-    fileName: 'Sandra_ERP_Setup.exe',
-    sizeBytes: stat.size,
-    sha256,
-    minSizeBytes: 50 * 1024 * 1024,
-    localPath: '/downloads/Sandra_ERP_Setup.exe',
-    storageUrl: STORAGE_URL,
-  },
-  android: {
-    fileName: 'Sandra_ERP.apk',
-    localPath: '/downloads/Sandra_ERP.apk',
-    available: fs.existsSync(apkSrc) && fs.statSync(apkSrc).size > 1024 * 1024,
-  },
-  hostingNote:
-    'Firebase Hosting (Spark) cannot serve .exe files. Live site must use storageUrl; local/Electron use localPath.',
+const manifest = fs.existsSync(manifestPath)
+  ? JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+  : { version: '1.0.0' };
+
+manifest.generatedAt = new Date().toISOString();
+manifest.windows = {
+  fileName: 'Sandra_ERP_Setup.exe',
+  sizeBytes: stat.size,
+  sha256,
+  minSizeBytes: 50 * 1024 * 1024,
+  localPath: '/downloads/windows/Sandra_ERP_Setup.exe',
+  storageUrl: STORAGE_URL,
 };
+
+const apkSrc = path.join(root, 'dist', 'downloads', 'android', 'Sandra_ERP.apk');
+if (!manifest.android) {
+  manifest.android = {
+    fileName: 'Sandra_ERP.apk',
+  };
+}
+manifest.android.localPath = '/downloads/android/Sandra_ERP.apk';
+manifest.android.available = fs.existsSync(apkSrc) && fs.statSync(apkSrc).size > 1024 * 1024;
 
 const manifestJson = JSON.stringify(manifest, null, 2) + '\n';
 fs.writeFileSync(manifestPath, manifestJson);
-fs.writeFileSync(path.join(electronOutDir, 'installer-manifest.json'), manifestJson);
+
+const electronDownloadsDir = path.join(root, 'electron-build', 'dist', 'downloads');
+if (!fs.existsSync(electronDownloadsDir)) fs.mkdirSync(electronDownloadsDir, { recursive: true });
+fs.writeFileSync(path.join(electronDownloadsDir, 'installer-manifest.json'), manifestJson);
 
 console.log('Copied installer to:');
 console.log(' ', outExe);
