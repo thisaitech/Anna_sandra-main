@@ -16,7 +16,7 @@ const electronOutDir = path.join(root, 'electron-build', 'dist', 'downloads', 'w
 const electronOutExe = path.join(electronOutDir, 'Sandra_ERP_Setup.exe');
 
 const STORAGE_URL =
-  'https://firebasestorage.googleapis.com/v0/b/petshop-9dee5.firebasestorage.app/o/downloads%2FSandra_ERP_Setup.exe?alt=media';
+  'https://firebasestorage.googleapis.com/v0/b/petshop-9dee5.firebasestorage.app/o/downloads%2Fwindows%2FSandra_ERP_Setup.exe?alt=media';
 
 execSync(`node "${path.join(__dirname, 'validate-installer.cjs')}" "${releaseExe}"`, {
   stdio: 'inherit',
@@ -45,6 +45,8 @@ manifest.windows = {
   minSizeBytes: 50 * 1024 * 1024,
   localPath: '/downloads/windows/Sandra_ERP_Setup.exe',
   storageUrl: STORAGE_URL,
+  releaseUrl:
+    'https://github.com/thisaitech/Anna_sandra-main/releases/latest/download/Sandra_ERP_Setup.exe',
 };
 
 const apkSrc = path.join(root, 'dist', 'downloads', 'android', 'Sandra_ERP.apk');

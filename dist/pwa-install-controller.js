@@ -97,30 +97,66 @@
   var winAvailable = false;
   var androidAvailable = false;
 
+  function pickWindowsUrl(m) {
+    if (!m || !m.windows) return null;
+    var w = m.windows;
+    var hostingPath = w.localPath || '/downloads/windows/Sandra_ERP_Setup.exe';
+    if (isHostedSite()) {
+      return w.releaseUrl || w.storageUrl || hostingPath;
+    }
+    return hostingPath;
+  }
+
+  function pickAndroidUrl(m) {
+    if (!m || !m.android) return null;
+    var a = m.android;
+    var hostingPath = a.localPath || '/downloads/android/Sandra_ERP.apk';
+    if (isHostedSite()) {
+      return a.storageUrl || a.releaseUrl || hostingPath;
+    }
+    return hostingPath;
+  }
+
   function checkInstallerAvailability() {
-    var winUrl = '/downloads/windows/Sandra_ERP_Setup.exe';
-    var apkUrl = '/downloads/android/Sandra_ERP.apk';
+    return loadManifest().then(function (m) {
+      var minWin = (m && m.windows && m.windows.minSizeBytes) || 50 * 1024 * 1024;
+      var minApk = (m && m.android && m.android.minSizeBytes) || 5 * 1024 * 1024;
+      var winUrl = pickWindowsUrl(m);
+      var apkUrl = pickAndroidUrl(m);
+      var tasks = [];
 
-    var checkWin = fetch(winUrl, { method: 'HEAD', cache: 'no-store' })
-      .then(function (r) {
-        var ct = (r.headers.get('content-type') || '').toLowerCase();
-        if (r.ok && ct.indexOf('text/html') === -1) {
-          winAvailable = true;
-        }
-      })
-      .catch(function () {});
+      winAvailable = false;
+      androidAvailable = false;
 
-    var checkAndroid = fetch(apkUrl, { method: 'HEAD', cache: 'no-store' })
-      .then(function (r) {
-        var ct = (r.headers.get('content-type') || '').toLowerCase();
-        if (r.ok && ct.indexOf('text/html') === -1) {
-          androidAvailable = true;
-        }
-      })
-      .catch(function () {});
+      if (winUrl) {
+        tasks.push(
+          probeUrl(winUrl, minWin)
+            .then(function () {
+              winAvailable = true;
+            })
+            .catch(function (err) {
+              log('windows probe failed', winUrl, err && err.message);
+              winAvailable = false;
+            })
+        );
+      }
 
-    return Promise.all([checkWin, checkAndroid]).then(function () {
-      updateButtonStates();
+      if (apkUrl && m && m.android && m.android.available) {
+        tasks.push(
+          probeUrl(apkUrl, minApk)
+            .then(function () {
+              androidAvailable = true;
+            })
+            .catch(function (err) {
+              log('android probe failed', apkUrl, err && err.message);
+              androidAvailable = false;
+            })
+        );
+      }
+
+      return Promise.all(tasks).then(function () {
+        updateButtonStates();
+      });
     });
   }
 
@@ -162,14 +198,6 @@
     }
   }
 
-  function pickWindowsUrl(m) {
-    return '/downloads/windows/Sandra_ERP_Setup.exe';
-  }
-
-  function pickAndroidUrl(m) {
-    return '/downloads/android/Sandra_ERP.apk';
-  }
-
   function validateResponse(meta, minSize) {
     var ct = (meta.contentType || '').toLowerCase();
     var len = meta.contentLength;
@@ -189,6 +217,9 @@
           contentType: head.headers.get('content-type') || '',
           contentLength: parseInt(head.headers.get('content-length') || '0', 10) || 0,
         };
+        if (!head.ok) {
+          throw new Error('Download probe failed (HTTP ' + head.status + ')');
+        }
         var err = validateResponse(meta, minSize);
         if (err) return Promise.reject(new Error(err));
         if (meta.contentLength >= minSize) return meta;
@@ -338,7 +369,13 @@
         .catch(function (err) {
           log('download failed', err);
           var msg = err && err.message ? err.message : 'Unknown error';
-          if (msg.indexOf('Corrupted') >= 0) {
+          if (msg.indexOf('404') >= 0 || msg.indexOf('probe failed') >= 0) {
+            showToast(
+              'Windows Installer Download Failed',
+              'Installer is not on the server yet.\n\nAsk your admin to run the deploy pipeline, or build locally:\n  .\\build-desktop.ps1',
+              true
+            );
+          } else if (msg.indexOf('Corrupted') >= 0) {
             showToast('Installer Corrupted', 'Please Download Again.\n\n' + msg, true);
           } else {
             showToast('Windows Installer Download Failed', 'Please Retry.\n\n' + msg, true);
@@ -457,5 +494,5 @@
     boot();
   }
 
-  log('controller v7 loaded (validated download)');
+  log('controller v8 loaded (validated download)');
 })();

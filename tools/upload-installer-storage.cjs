@@ -10,9 +10,9 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
-const exe = path.join(root, 'dist', 'downloads', 'Sandra_ERP_Setup.exe');
+const exe = path.join(root, 'dist', 'downloads', 'windows', 'Sandra_ERP_Setup.exe');
 const bucket = 'petshop-9dee5.firebasestorage.app';
-const dest = 'downloads/Sandra_ERP_Setup.exe';
+const dest = 'downloads/windows/Sandra_ERP_Setup.exe';
 
 if (!fs.existsSync(exe)) {
   console.error('Run copy-desktop-installer.cjs first:', exe);

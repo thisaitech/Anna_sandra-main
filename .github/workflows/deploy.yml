@@ -8,6 +8,8 @@ on:
 jobs:
   build-and-deploy:
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -44,6 +46,19 @@ jobs:
       - name: Build Android APK
         run: |
           powershell -ExecutionPolicy Bypass -File build-android-apk.ps1
+        continue-on-error: true
+
+      - name: Publish Windows installer to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop-${{ github.run_number }}
+          name: Sandra ERP Desktop Build ${{ github.run_number }}
+          files: dist/downloads/windows/Sandra_ERP_Setup.exe
+          make_latest: true
+          generate_release_notes: true
+
+      - name: Remove exe from dist (Spark plan forbids exe on Hosting)
+        run: Remove-Item -Force dist\downloads\windows\Sandra_ERP_Setup.exe
 
       - name: Deploy to Firebase Hosting
         env:

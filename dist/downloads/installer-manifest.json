@@ -1,13 +1,14 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-06-09T02:14:16.029Z",
+  "generatedAt": "2026-06-16T10:27:12.812Z",
   "windows": {
     "fileName": "Sandra_ERP_Setup.exe",
     "sizeBytes": 161607164,
     "sha256": "7d225b2d39618a955ad8fa9d2b2c20551287abc00f844bf42188dcc6dcef3efe",
     "minSizeBytes": 52428800,
     "localPath": "/downloads/windows/Sandra_ERP_Setup.exe",
-    "storageUrl": "https://firebasestorage.googleapis.com/v0/b/petshop-9dee5.firebasestorage.app/o/downloads%2FSandra_ERP_Setup.exe?alt=media"
+    "storageUrl": "https://firebasestorage.googleapis.com/v0/b/petshop-9dee5.firebasestorage.app/o/downloads%2Fwindows%2FSandra_ERP_Setup.exe?alt=media",
+    "releaseUrl": "https://github.com/thisaitech/Anna_sandra-main/releases/latest/download/Sandra_ERP_Setup.exe"
   },
   "android": {
     "fileName": "Sandra_ERP.apk",

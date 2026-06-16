@@ -19,7 +19,9 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/*.exe",
+      "**/*.apk"
     ],
     "headers": [
       {
@@ -30,9 +32,39 @@
             "value": "no-cache, max-age=0"
           }
         ]
+      },
+      {
+        "source": "/downloads/**/*.exe",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/vnd.microsoft.portable-executable"
+          },
+          {
+            "key": "Content-Disposition",
+            "value": "attachment"
+          }
+        ]
+      },
+      {
+        "source": "/downloads/**/*.apk",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/vnd.android.package-archive"
+          },
+          {
+            "key": "Content-Disposition",
+            "value": "attachment"
+          }
+        ]
       }
     ],
     "rewrites": [
+      {
+        "source": "/downloads/**",
+        "destination": "/downloads/**"
+      },
       {
         "source": "**",
         "destination": "/index.html"
